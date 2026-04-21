@@ -1,0 +1,906 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --orange: #123396;
+    --orange-light: #3B82F6;
+    --orange-dark: #1E3A8A;
+    --orange-pale: #EEF2FF;
+    --orange-mid: #C7D2FE;
+    --white: #FFFFFF;
+    --off-white: #F5F7FF;
+    --gray-100: #F0F2FA;
+    --gray-200: #D1D5E8;
+    --gray-400: #6B7280;
+    --gray-700: #1E2A4A;
+    --green: #2E7D52;
+    --green-pale: #E8F5EE;
+    --red: #C0392B;
+    --red-pale: #FDECEA;
+    --amber: #D4820A;
+    --amber-pale: #FEF6E4;
+    --shadow: 0 2px 12px rgba(11,34,101,0.10);
+  }
+
+  body { font-family: 'DM Sans', sans-serif; background: var(--off-white); color: var(--gray-700); }
+
+  .dashboard { min-height: 100vh; }
+
+  /* TOP NAV */
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--orange-mid);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--orange);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px;
+  }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; color: var(--gray-700); }
+  .logo-sub { font-size: 11px; color: var(--gray-400); font-weight: 400; letter-spacing: 0.05em; text-transform: uppercase; }
+  .nav-badge {
+    background: var(--orange-pale);
+    color: var(--orange);
+    border: 1px solid var(--orange-mid);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* MAIN LAYOUT */
+  .main { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 60px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--white);
+    border-right: 1px solid var(--gray-200);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .sidebar-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* UPLOAD ZONES */
+  .upload-zone {
+    border: 1.5px dashed var(--orange-mid);
+    border-radius: 10px;
+    padding: 1rem;
+    background: var(--orange-pale);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .upload-zone:hover { border-color: var(--orange); background: #fff3ec; }
+  .upload-zone.uploaded { border-style: solid; border-color: var(--orange); background: var(--orange-pale); }
+  .upload-zone.uploading { border-color: var(--orange-light); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+  .upload-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--white);
+    border: 1px solid var(--orange-mid);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+  .upload-zone.uploaded .upload-icon { background: var(--orange); border-color: var(--orange); }
+  .upload-info { flex: 1; min-width: 0; }
+  .upload-label { font-size: 13px; font-weight: 500; color: var(--gray-700); }
+  .upload-hint { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+  .upload-status { font-size: 11px; color: var(--orange); font-weight: 500; margin-top: 2px; }
+  input[type=file] { display: none; }
+
+  .analyze-btn {
+    width: 100%;
+    background: var(--orange);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .analyze-btn:hover:not(:disabled) { background: var(--orange-dark); transform: translateY(-1px); }
+  .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .progress-bar-wrap { display: none; }
+  .progress-bar-wrap.show { display: block; }
+  .progress-label { font-size: 12px; color: var(--gray-400); margin-bottom: 6px; }
+  .progress-track { height: 6px; background: var(--gray-200); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--orange); border-radius: 4px; transition: width 0.4s ease; }
+
+  /* CONTENT AREA */
+  .content { padding: 1.5rem; overflow-y: auto; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 60vh; text-align: center;
+    gap: 1rem;
+  }
+  .empty-icon {
+    width: 80px; height: 80px; border-radius: 20px;
+    background: var(--orange-pale);
+    border: 2px solid var(--orange-mid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin-bottom: 0.5rem;
+  }
+  .empty-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--gray-700); }
+  .empty-sub { font-size: 14px; color: var(--gray-400); max-width: 320px; line-height: 1.6; }
+
+  /* HEALTH SCORE */
+  .health-header {
+    display: grid; grid-template-columns: 1fr auto;
+    gap: 1rem; align-items: start; margin-bottom: 1.5rem;
+  }
+  .company-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--gray-700); }
+  .period { font-size: 13px; color: var(--gray-400); margin-top: 2px; }
+
+  .score-ring {
+    width: 90px; height: 90px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .score-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+  .score-num { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--orange); }
+  .score-label { font-size: 10px; color: var(--gray-400); text-align: center; }
+
+  /* KPI CARDS */
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .kpi-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px; background: var(--orange);
+  }
+  .kpi-card.warn::before { background: var(--amber); }
+  .kpi-card.danger::before { background: var(--red); }
+  .kpi-card.good::before { background: var(--green); }
+
+  .kpi-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+  .kpi-value { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--gray-700); margin: 4px 0; }
+  .kpi-change { font-size: 12px; display: flex; align-items: center; gap: 4px; }
+  .kpi-change.up { color: var(--green); }
+  .kpi-change.down { color: var(--red); }
+
+  /* DIMENSION SECTIONS */
+  .dim-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  .dim-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 1.1rem;
+  }
+  .dim-title {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    color: var(--gray-700); margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dim-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
+  .dim-dot.warn { background: var(--amber); }
+  .dim-dot.danger { background: var(--red); }
+  .dim-dot.good { background: var(--green); }
+
+  .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--gray-100); }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-name { font-size: 12px; color: var(--gray-400); }
+  .metric-val { font-size: 13px; font-weight: 500; color: var(--gray-700); }
+  .metric-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; margin-left: 6px;
+  }
+  .badge-good { background: var(--green-pale); color: var(--green); }
+  .badge-warn { background: var(--amber-pale); color: var(--amber); }
+  .badge-bad { background: var(--red-pale); color: var(--red); }
+
+  /* BAR CHART */
+  .bar-chart { display: flex; gap: 8px; align-items: flex-end; height: 80px; margin-top: 8px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--orange-mid); transition: height 0.4s ease; min-height: 4px; position: relative; }
+  .bar.current { background: var(--orange); }
+  .bar-lbl { font-size: 10px; color: var(--gray-400); }
+  .bar-num { font-size: 10px; font-weight: 500; color: var(--gray-700); }
+
+  /* LOADING */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(255,243,236,0.85);
+    z-index: 200; align-items: center; justify-content: center; flex-direction: column; gap: 1rem;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px; border: 4px solid var(--orange-mid);
+    border-top-color: var(--orange); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--orange); font-size: 16px; }
+  .loading-sub { font-size: 13px; color: var(--gray-400); }
+
+  /* CHAT BUTTON IN NAVBAR */
+  .chat-btn {
+    background: var(--orange); border: none; color: white;
+    cursor: pointer; font-size: 13px; padding: 8px 14px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; transition: all 0.2s;
+    margin-left: auto; border-radius: 8px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; gap: 6px;
+  }
+  .chat-btn.show { display: flex; }
+  .chat-btn:hover { background: var(--orange-dark); transform: translateY(-2px); }
+  .chat-btn .notif {
+    position: absolute; top: -4px; right: -4px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--green); border: 2px solid white;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+  }
+
+  .chat-panel {
+    position: fixed; top: 60px; right: 0;
+    width: calc(100% - 340px); height: calc(100vh - 60px);
+    background: var(--white); border-left: 1px solid var(--gray-200);
+    box-shadow: -2px 0 20px rgba(0,0,0,0.08);
+    z-index: 250; display: none; flex-direction: column;
+    overflow: hidden; transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  .chat-panel.show { display: flex; transform: translateX(0); }
+  @keyframes slideUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+
+  .chat-head {
+    background: var(--orange);
+    padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .chat-head-info { display: flex; align-items: center; gap: 10px; }
+  .chat-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: white;
+  }
+  .chat-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: white; }
+  .chat-sub { font-size: 11px; color: rgba(255,255,255,0.8); }
+  .chat-close { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
+
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 85%; }
+  .msg.bot { align-self: flex-start; }
+  .msg.user { align-self: flex-end; }
+  .msg-bubble {
+    padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+  }
+  .bot .msg-bubble { background: var(--gray-100); color: var(--gray-700); border-bottom-left-radius: 4px; }
+  .user .msg-bubble { background: var(--orange); color: white; border-bottom-right-radius: 4px; }
+  .msg-time { font-size: 10px; color: var(--gray-400); margin-top: 3px; padding: 0 2px; }
+  .msg.user .msg-time { text-align: right; }
+
+  .typing { display: flex; gap: 4px; align-items: center; padding: 8px 12px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray-400); animation: bounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+
+  .chat-input-row {
+    padding: 10px 12px;
+    border-top: 1px solid var(--gray-200);
+    display: flex; gap: 8px;
+  }
+  .chat-input {
+    flex: 1; border: 1px solid var(--gray-200); border-radius: 20px;
+    padding: 8px 14px; font-size: 13px; outline: none; font-family: 'DM Sans', sans-serif;
+  }
+  .chat-input:focus { border-color: var(--orange); }
+  .chat-send {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--orange);
+    border: none; color: white; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .chat-send:hover { background: var(--orange-dark); }
+
+  /* ALERT BANNER */
+  .alert {
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 13px; margin-bottom: 1rem;
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .alert.warn { background: var(--amber-pale); color: var(--amber); border: 1px solid #FACD76; }
+  .alert.danger { background: var(--red-pale); color: var(--red); border: 1px solid #F5A09A; }
+  .alert.good { background: var(--green-pale); color: var(--green); border: 1px solid #8FCCA7; }
+  .alert-icon { font-size: 16px; flex-shrink: 0; }
+  .alert-text { line-height: 1.5; }
+
+  /* FOOTER ROW */
+  .footer-row { font-size: 11px; color: var(--gray-400); text-align: center; padding-top: 1rem; border-top: 1px solid var(--gray-200); }
+
+  .section-label {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-400); margin-bottom: 8px;
+  }
+
+  .full-dim { grid-column: 1 / -1; }
+
+  .cashflow-bars { display: flex; gap: 6px; align-items: flex-end; height: 70px; }
+  .cf-col { flex: 1; display: flex; flex-direction: column; gap: 3px; align-items: center; }
+  .cf-bar { width: 100%; border-radius: 3px 3px 0 0; }
+  .cf-positive { background: var(--green); }
+  .cf-negative { background: var(--red); }
+  .cf-lbl { font-size: 10px; color: var(--gray-400); }
+  .cf-val { font-size: 10px; font-weight: 500; }
+  .cf-val.pos { color: var(--green); }
+  .cf-val.neg { color: var(--red); }
+
+  .quick-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+  .chip {
+    background: var(--orange-pale); color: var(--orange);
+    border: 1px solid var(--orange-mid); border-radius: 16px;
+    padding: 4px 10px; font-size: 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .chip:hover { background: var(--orange); color: white; }
+</style>
+
+<div class="dashboard">
+  <nav class="topbar">
+    <div class="logo">
+      <div class="logo-icon">CF</div>
+      <div>
+        <div class="logo-text">CFO Intelligence</div>
+        <div class="logo-sub">Financial Health Platform</div>
+      </div>
+    </div>
+    <button class="chat-btn" id="chat-btn" onclick="toggleChat()" title="Chat with AI CFO">
+      Chat with AI CFO 💬
+      <div class="notif">1</div>
+    </button>
+  </nav>
+
+  <div class="main">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-title">Upload Documents</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:4px;line-height:1.5;">
+          Upload your financial documents. Our AI agent will extract & analyse all metrics.
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <label class="upload-zone" id="z-balance" for="f-balance">
+          <div class="upload-icon" id="icon-balance">📊</div>
+          <div class="upload-info">
+            <div class="upload-label">Balance Sheet</div>
+            <div class="upload-hint" id="hint-balance">PDF or image</div>
+            <div class="upload-status" id="status-balance" style="display:none;"></div>
+          </div>
+          <input type="file" id="f-balance" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+
+        <label class="upload-zone" id="z-pl" for="f-pl">
+          <div class="upload-icon" id="icon-pl">📈</div>
+          <div class="upload-info">
+            <div class="upload-label">Profit & Loss</div>
+            <div class="upload-hint" id="hint-pl">PDF or image</div>
+            <div class="upload-status" id="status-pl" style="display:none;"></div>
+          </div>
+          <input type="file" id="f-pl" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+
+        <label class="upload-zone" id="z-cf" for="f-cf">
+          <div class="upload-icon" id="icon-cf">💸</div>
+          <div class="upload-info">
+            <div class="upload-label">Cash Flow</div>
+            <div class="upload-hint" id="hint-cf">PDF or image</div>
+            <div class="upload-status" id="status-cf" style="display:none;"></div>
+          </div>
+          <input type="file" id="f-cf" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+
+        <label class="upload-zone" id="z-ratio" for="f-ratio">
+          <div class="upload-icon" id="icon-ratio">📐</div>
+          <div class="upload-info">
+            <div class="upload-label">Ratio Analysis</div>
+            <div class="upload-hint" id="hint-ratio">PDF or image</div>
+            <div class="upload-status" id="status-ratio" style="display:none;"></div>
+          </div>
+          <input type="file" id="f-ratio" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+      </div>
+
+      <div class="progress-bar-wrap" id="progress-wrap">
+        <div class="progress-label" id="progress-label">Sending to AI agent...</div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+
+      <button class="analyze-btn" id="analyze-btn" disabled onclick="runAnalysis()">
+        Analyse Company Health
+      </button>
+
+      <div class="footer-row">
+        Powered by N8N · CFO Agent · RAG Intelligence
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="content" id="content">
+      <!-- EMPTY STATE -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🏦</div>
+        <div class="empty-title">Upload to begin</div>
+        <div class="empty-sub">Upload at least one financial document on the left, then click Analyse to get a complete company health report.</div>
+      </div>
+
+      <!-- DASHBOARD (hidden initially) -->
+      <div id="dashboard-content" style="display:none;">
+
+        <div class="company-name" id="company-name" style="font-family:'Syne',sans-serif;font-weight:700;font-size:22px;color:var(--gray-700);margin-bottom:1rem;">MMX Foods Private Limited</div>
+
+        <div class="health-header">
+          <div>
+            <div class="period" id="company-period">FY 2024 · Financial Health Report</div>
+          </div>
+          <div class="score-ring">
+            <svg width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="38" fill="none" stroke="#FFE0CC" stroke-width="7"/>
+              <circle cx="45" cy="45" r="38" fill="none" stroke="#E8621A" stroke-width="7"
+                stroke-dasharray="239" stroke-dashoffset="77" stroke-linecap="round"/>
+            </svg>
+            <div style="text-align:center;">
+              <div class="score-num" id="health-score">67</div>
+              <div class="score-label">/ 100</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI ROW -->
+        <div class="section-label">Key Financials (₹ in thousands)</div>
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <!-- ALERTS -->
+        <div id="alerts-area"></div>
+
+        <!-- DIMENSION CARDS -->
+        <div class="section-label">6-Dimension Analysis</div>
+        <div class="dim-grid" id="dim-grid"></div>
+
+        <div class="footer-row" style="margin-top:1rem;">
+          Last analysed: <span id="last-analysed">—</span> · Data source: AI OCR Agent via N8N
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Sending to CFO Agent...</div>
+  <div class="loading-sub" id="loading-sub">Extracting financial data via OCR</div>
+</div>
+
+<!-- CHAT PANEL -->
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-head">
+    <div class="chat-head-info">
+      <div class="chat-avatar">AI</div>
+      <div>
+        <div class="chat-title">CFO AI Assistant</div>
+        <div class="chat-sub">Ask anything about your financials</div>
+      </div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="msg bot">
+      <div class="msg-bubble">👋 Hello! I'm your CFO AI assistant. I have full context of the analysed financial documents. Ask me anything about the company's health, ratios, or cash flow.</div>
+      <div class="msg-time">Now</div>
+    </div>
+  </div>
+  <div class="quick-chips" id="quick-chips">
+    <div class="chip" onclick="askChip('What is the biggest financial risk?')">Biggest risk?</div>
+    <div class="chip" onclick="askChip('Explain the debt-equity ratio trend')">Debt-equity trend</div>
+    <div class="chip" onclick="askChip('How is cash flow health?')">Cash flow health</div>
+    <div class="chip" onclick="askChip('What improved vs last year?')">YoY improvements</div>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" class="chat-input" id="chat-input" placeholder="Ask about the financials..." onkeydown="if(event.key==='Enter') sendChat()">
+    <button class="chat-send" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<script>
+const WEBHOOK_UPLOAD = 'https://n8n.srv982383.hstgr.cloud/webhook/cfo';
+const WEBHOOK_CHAT = 'https://n8n.srv982383.hstgr.cloud/webhook/ca2cdbad-af03-4978-a0dd-19b4efebd984';
+
+const files = { balance: null, pl: null, cf: null, ratio: null };
+let analysisData = null;
+let chatOpen = false;
+let sessionId = 'session_' + Date.now();
+
+['balance','pl','cf','ratio'].forEach(key => {
+  document.getElementById('f-' + key).addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    files[key] = file;
+    const zone = document.getElementById('z-' + key);
+    const hint = document.getElementById('hint-' + key);
+    const statusEl = document.getElementById('status-' + key);
+    const icon = document.getElementById('icon-' + key);
+    zone.classList.add('uploaded');
+    hint.style.display = 'none';
+    statusEl.style.display = 'block';
+    statusEl.textContent = '✓ ' + file.name.substring(0, 28);
+    icon.style.background = 'var(--orange)';
+    icon.style.borderColor = 'var(--orange)';
+    icon.innerHTML = '<span style="filter:brightness(0) invert(1)">✓</span>';
+    checkReady();
+  });
+});
+
+function checkReady() {
+  const anyFile = Object.values(files).some(f => f !== null);
+  document.getElementById('analyze-btn').disabled = !anyFile;
+}
+
+function mergeN8nOutputs(raw) {
+  if (!raw) return null;
+  // Accept single object or array
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const parsed = arr.map(item => {
+    try {
+      const src = typeof item.output === 'string' ? JSON.parse(item.output) : (item.output || item);
+      return src;
+    } catch { return null; }
+  }).filter(Boolean);
+  if (!parsed.length) return null;
+
+  // Average health score
+  const health_score = Math.round(parsed.reduce((s, d) => s + (d.health_score || 0), 0) / parsed.length);
+
+  // First valid company/period
+  const company = parsed.find(d => d.company)?.company || 'Company';
+  const period = parsed.find(d => d.period)?.period || '';
+
+  // Combine all alerts (dedupe by text)
+  const alertSeen = new Set();
+  const alerts = parsed.flatMap(d => d.alerts || []).filter(a => {
+    if (alertSeen.has(a.text)) return false;
+    alertSeen.add(a.text);
+    return true;
+  });
+
+  // Merge KPIs: prefer first real value over N/A
+  const kpiMap = new Map();
+  parsed.flatMap(d => d.kpis || []).forEach(k => {
+    const isReal = v => v && v !== 'N/A' && v !== 'Data Not Provided' && !v.startsWith('Data Not');
+    if (!kpiMap.has(k.label) || (!isReal(kpiMap.get(k.label).value) && isReal(k.value))) {
+      kpiMap.set(k.label, k);
+    }
+  });
+  const kpis = [...kpiMap.values()];
+
+  // Merge dimensions: combine metrics per title
+  const dimMap = new Map();
+  parsed.flatMap(d => d.dimensions || []).forEach(dim => {
+    if (!dimMap.has(dim.title)) {
+      dimMap.set(dim.title, { ...dim, metrics: [...(dim.metrics || [])] });
+    } else {
+      const existing = dimMap.get(dim.title);
+      const existingNames = new Set(existing.metrics.map(m => m.name));
+      (dim.metrics || []).forEach(m => { if (!existingNames.has(m.name)) existing.metrics.push(m); });
+      // Escalate status: danger > warn > good
+      const rank = { danger: 2, warn: 1, good: 0 };
+      if ((rank[dim.status] || 0) > (rank[existing.status] || 0)) existing.status = dim.status;
+    }
+  });
+  const dimensions = [...dimMap.values()];
+
+  return { company, period, health_score, alerts, kpis, dimensions };
+}
+
+async function runAnalysis() {
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  showLoading('Sending to CFO Agent...', 'OCR extraction in progress');
+  
+  const form = new FormData();
+  let count = 0;
+  for (const [key, file] of Object.entries(files)) {
+    if (file) { form.append(key, file); count++; }
+  }
+  form.append('sessionId', sessionId);
+
+  setProgress(20, 'Uploading documents...');
+
+  try {
+    setProgress(40, 'AI agent processing OCR...');
+    const res = await fetch(WEBHOOK_UPLOAD, { method: 'POST', body: form });
+    setProgress(70, 'Calculating financial metrics...');
+
+    let raw;
+    if (res.ok) {
+      try { raw = await res.json(); } catch { raw = null; }
+    }
+
+    setProgress(90, 'Building health report...');
+    await new Promise(r => setTimeout(r, 600));
+
+    const merged = mergeN8nOutputs(raw);
+    if (merged) {
+      renderDashboard(merged);
+    } else {
+      renderDashboard(getSampleData());
+    }
+    setProgress(100, 'Done!');
+  } catch(err) {
+    renderDashboard(getSampleData());
+    setProgress(100, 'Using demo data (webhook offline)');
+  }
+
+  await new Promise(r => setTimeout(r, 400));
+  hideLoading();
+  document.getElementById('analyze-btn').disabled = false;
+  document.getElementById('chat-btn').classList.add('show');
+}
+
+function setProgress(pct, label) {
+  const wrap = document.getElementById('progress-wrap');
+  wrap.classList.add('show');
+  document.getElementById('progress-label').textContent = label;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('loading-text').textContent = label;
+}
+
+function showLoading(t, s) {
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('loading-text').textContent = t;
+  document.getElementById('loading-sub').textContent = s;
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+
+function getSampleData() {
+  return {
+    company: "MMX Foods Private Limited",
+    period: "FY 2024 · Financial Health Report",
+    health_score: 67,
+    alerts: [
+      { type: "danger", text: "Current Ratio dropped to 0.61 (from 1.84) — liquidity under severe stress due to heavy OD borrowings of ₹2.07 Cr." },
+      { type: "warn", text: "Debt-Equity Ratio surged to 6.48x — highly leveraged balance sheet. Monitor closely." },
+      { type: "good", text: "Net Profit Ratio improved to 2.66% (from 1.12%) — operational efficiency gains are promising." }
+    ],
+    kpis: [
+      { label: "Revenue", value: "₹15.48 Cr", change: "+0.02%", dir: "up" },
+      { label: "Net Profit", value: "₹41.12 L", change: "+137.6%", dir: "up" },
+      { label: "Total Assets", value: "₹29.72 Cr", change: "+90.7%", dir: "up" },
+      { label: "EBIT", value: "₹65.44 L", change: "+82%", dir: "up" },
+      { label: "Short-term Debt", value: "₹20.70 Cr", change: "+591%", dir: "down" },
+      { label: "Equity", value: "₹3.49 Cr", change: "+13.3%", dir: "up" }
+    ],
+    dimensions: [
+      {
+        title: "Liquidity", status: "danger",
+        metrics: [
+          { name: "Current Ratio", val: "0.61x", badge: "bad", note: "▼ from 1.84x" },
+          { name: "Cash & Bank", val: "₹1.95 L", badge: "bad", note: "" },
+          { name: "Working Capital", val: "Negative", badge: "bad", note: "" }
+        ]
+      },
+      {
+        title: "Profitability", status: "good",
+        metrics: [
+          { name: "Net Profit Ratio", val: "2.66%", badge: "good", note: "▲ from 1.12%" },
+          { name: "ROE", val: "12.51%", badge: "good", note: "▲ from 5.78%" },
+          { name: "ROCE", val: "5.33%", badge: "warn", note: "▼ from 6.50%" }
+        ]
+      },
+      {
+        title: "Leverage & Solvency", status: "danger",
+        metrics: [
+          { name: "Debt-Equity Ratio", val: "6.48x", badge: "bad", note: "▲ from 3.44x" },
+          { name: "DSCR", val: "0.11x", badge: "bad", note: "▼ from 1.70x" },
+          { name: "LT Borrowings", val: "₹19.36 L", badge: "good", note: "▼ from ₹76.06 L" }
+        ]
+      },
+      {
+        title: "Operational Efficiency", status: "warn",
+        metrics: [
+          { name: "Inventory Turnover", val: "9.35x", badge: "warn", note: "▼ from 15.59x" },
+          { name: "Receivables T/O", val: "12.75x", badge: "good", note: "▲ from 8.77x" },
+          { name: "Payables T/O", val: "3.86x", badge: "warn", note: "▼ from 5.80x" }
+        ]
+      },
+      {
+        title: "Cash Flow Health", status: "warn",
+        metrics: [
+          { name: "Operating CF", val: "-₹3.53 Cr", badge: "bad", note: "Cash burn" },
+          { name: "Investing CF", val: "-₹8.31 Cr", badge: "warn", note: "CapEx heavy" },
+          { name: "Financing CF", val: "+₹11.84 Cr", badge: "warn", note: "OD funded" }
+        ],
+        cashflow: true
+      },
+      {
+        title: "Growth & Capital", status: "warn",
+        metrics: [
+          { name: "Revenue Growth", val: "+0.02%", badge: "warn", note: "Flat revenue" },
+          { name: "Asset Growth", val: "+90.7%", badge: "good", note: "CWIP expansion" },
+          { name: "EPS", val: "₹2.00", badge: "good", note: "▲ from ₹0.45" }
+        ]
+      }
+    ]
+  };
+}
+
+function renderDashboard(d) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('dashboard-content').style.display = 'block';
+  document.getElementById('company-name').textContent = d.company || 'Company';
+  document.getElementById('company-period').textContent = d.period || '';
+  document.getElementById('health-score').textContent = d.health_score || '—';
+  document.getElementById('last-analysed').textContent = new Date().toLocaleString('en-IN');
+
+  const score = d.health_score || 67;
+  const circ = 2 * Math.PI * 38;
+  const offset = circ - (score / 100) * circ;
+  const ring = document.querySelector('.score-ring circle:nth-child(2)');
+  if (ring) { ring.setAttribute('stroke-dasharray', circ.toFixed(0)); ring.setAttribute('stroke-dashoffset', offset.toFixed(0)); }
+
+  const alertsArea = document.getElementById('alerts-area');
+  alertsArea.innerHTML = '';
+  (d.alerts || []).forEach(a => {
+    const icons = { danger: '🚨', warn: '⚠️', good: '✅' };
+    alertsArea.innerHTML += `<div class="alert ${a.type}"><span class="alert-icon">${icons[a.type]||'ℹ️'}</span><div class="alert-text">${a.text}</div></div>`;
+  });
+
+  const kpiGrid = document.getElementById('kpi-grid');
+  kpiGrid.innerHTML = '';
+  (d.kpis || []).forEach(k => {
+    const cls = k.dir === 'down' ? 'danger' : (k.dir === 'up' ? 'good' : '');
+    kpiGrid.innerHTML += `<div class="kpi-card ${cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-change ${k.dir}">${k.dir==='up'?'▲':'▼'} ${k.change}</div>
+    </div>`;
+  });
+
+  const dimGrid = document.getElementById('dim-grid');
+  dimGrid.innerHTML = '';
+  (d.dimensions || []).forEach(dim => {
+    let metricsHTML = (dim.metrics || []).map(m =>
+      `<div class="metric-row">
+        <span class="metric-name">${m.name} <span style="font-size:10px;color:var(--gray-400)">${m.note||''}</span></span>
+        <span class="metric-val">${m.val}<span class="metric-badge badge-${m.badge||'warn'}">${m.badge==='good'?'OK':m.badge==='bad'?'Low':'Watch'}</span></span>
+      </div>`
+    ).join('');
+    dimGrid.innerHTML += `<div class="dim-card">
+      <div class="dim-title"><div class="dim-dot ${dim.status}"></div>${dim.title}</div>
+      ${metricsHTML}
+    </div>`;
+  });
+
+  analysisData = d;
+}
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-panel').classList.toggle('show', chatOpen);
+  if (chatOpen) document.querySelector('#chat-btn .notif').style.display = 'none';
+}
+
+function askChip(q) {
+  document.getElementById('chat-input').value = q;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+
+  appendMsg('user', q);
+  const typingEl = appendTyping();
+
+  try {
+    const res = await fetch(WEBHOOK_CHAT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q, sessionId, context: analysisData ? JSON.stringify(analysisData).substring(0, 2000) : '' })
+    });
+    typingEl.remove();
+    if (res.ok) {
+      const data = await res.json();
+      const reply = data.reply || data.text || data.message || data.output || JSON.stringify(data);
+      appendMsg('bot', reply);
+    } else {
+      appendMsg('bot', getFallback(q));
+    }
+  } catch {
+    typingEl.remove();
+    appendMsg('bot', getFallback(q));
+  }
+}
+
+function getFallback(q) {
+  const lq = q.toLowerCase();
+  if (lq.includes('risk')) return "The biggest risk is the liquidity crunch — Current Ratio fell to 0.61x from 1.84x. The company is heavily relying on OD borrowings (₹20.70 Cr short-term debt) which has spiked 591%. DSCR of 0.11x means the company can barely service its debt from operations.";
+  if (lq.includes('debt') || lq.includes('equity')) return "Debt-Equity Ratio jumped to 6.48x from 3.44x — an 88% increase. Long-term debt reduced (good) but short-term OD borrowings exploded. This is a structural risk if revenue stays flat.";
+  if (lq.includes('cash')) return "Cash flow is strained. Operating CF is -₹3.53 Cr (cash burn). Investing CF is -₹8.31 Cr (heavy CapEx/fixed assets). Only Financing CF is positive at +₹11.84 Cr — but that's all borrowed money via ODs.";
+  if (lq.includes('improv') || lq.includes('better') || lq.includes('good')) return "Positives: Net Profit Ratio improved to 2.66% (from 1.12%), ROE jumped to 12.51% (from 5.78%), EPS grew to ₹2.00 (from ₹0.45), and long-term borrowings reduced significantly from ₹76.06 L to ₹19.36 L.";
+  return "Based on the financial analysis: the company shows mixed health. Strong profitability growth (net profit +137%) but severe liquidity stress. Would you like me to deep-dive into a specific area?";
+}
+
+function parseMarkdown(text) {
+  return text
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^###\s+(.+)$/gm, '<div style="font-weight:600;font-size:12px;margin:6px 0 3px;color:#1A1614;">$1</div>')
+    .replace(/^[-•]\s+(.+)$/gm, '&bull; $1<br>')
+    .replace(/^\d+\.\s+(.+)$/gm, (_, item, offset, str) => {
+      const num = str.slice(0, offset).split('\n').filter(l => /^\d+\./.test(l)).length + 1;
+      return num + '. ' + item + '<br>';
+    })
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>')
+    .replace(/\*/g, '');
+}
+
+function appendMsg(role, text) {
+  const msgs = document.getElementById('chat-messages');
+  const time = new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="msg-bubble">${parseMarkdown(text)}</div><div class="msg-time">${time}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<div class="msg-bubble"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+</script>
