@@ -376,6 +376,16 @@
 </style>
 
 <div class="dashboard">
+  <div id="welcome-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+    <div style="background: white; padding: 30px; border-radius: 16px; text-align: center; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); font-family: 'DM Sans', sans-serif;">
+      <div style="font-size: 40px; margin-bottom: 15px;">👋</div>
+      <h2 style="color: var(--orange); margin-bottom: 10px;">Welcome to AI CFO</h2>
+      <p style="color: var(--gray-400); margin-bottom: 25px; line-height: 1.5;">Welcome, Ready to analyze your financial health? Click the button below to start your professional financial journey.</p>
+      <div style="display: flex; justify-content: flex-end;">
+        <button id="close-welcome" style="background: var(--orange); color: white; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.3s;">OK</button>
+      </div>
+    </div>
+  </div>
   <nav class="topbar">
     <div class="logo">
       <div class="logo-icon">CF</div>
@@ -552,6 +562,54 @@ let analysisData = null;
 let chatOpen = false;
 let sessionId = 'session_' + Date.now();
 
+// --- UPDATED AUDIO & MODAL LOGIC ---
+const phraseFiles = [
+  'Audio_file/PHRASES1.mp3',
+  'Audio_file/PHRASES2.mp3',
+  'Audio_file/PHRASES3.mp3',
+  'Audio_file/PHRASES4.mp3',
+  'Audio_file/PHRASES5.mp3'
+];
+let currentPhraseAudio = null;
+let currentPhraseIndex = 0;
+let isProcessing = false;
+
+// Welcome Card and Audio Trigger
+document.getElementById('close-welcome').addEventListener('click', function() {
+  document.getElementById('welcome-modal').style.display = 'none';
+  
+  // Play Welcome Audio
+  const welcomeAudio = new Audio('Audio_file/welcome.mp3');
+  welcomeAudio.play().catch(err => console.log("Audio play failed", err));
+});
+
+function playNextPhrase() {
+  if (!isProcessing) return;
+
+  currentPhraseAudio = new Audio(phraseFiles[currentPhraseIndex]);
+  currentPhraseAudio.play().catch(err => console.log("Processing audio blocked"));
+
+  currentPhraseAudio.onended = () => {
+    // 4 second gap b/w phrases
+    setTimeout(() => {
+      if (isProcessing) {
+        currentPhraseIndex = (currentPhraseIndex + 1) % phraseFiles.length;
+        playNextPhrase();
+      }
+    }, 4000); 
+  };
+}
+
+function stopPhrases() {
+  isProcessing = false;
+  if (currentPhraseAudio) {
+    currentPhraseAudio.pause();
+    currentPhraseAudio.currentTime = 0;
+  }
+  currentPhraseIndex = 0;
+}
+// --- END logic audio---
+
 ['balance','pl','cf','ratio'].forEach(key => {
   document.getElementById('f-' + key).addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -579,7 +637,6 @@ function checkReady() {
 
 function mergeN8nOutputs(raw) {
   if (!raw) return null;
-  // Accept single object or array
   const arr = Array.isArray(raw) ? raw : [raw];
   const parsed = arr.map(item => {
     try {
@@ -589,14 +646,10 @@ function mergeN8nOutputs(raw) {
   }).filter(Boolean);
   if (!parsed.length) return null;
 
-  // Average health score
   const health_score = Math.round(parsed.reduce((s, d) => s + (d.health_score || 0), 0) / parsed.length);
-
-  // First valid company/period
   const company = parsed.find(d => d.company)?.company || 'Company';
   const period = parsed.find(d => d.period)?.period || '';
 
-  // Combine all alerts (dedupe by text)
   const alertSeen = new Set();
   const alerts = parsed.flatMap(d => d.alerts || []).filter(a => {
     if (alertSeen.has(a.text)) return false;
@@ -604,7 +657,6 @@ function mergeN8nOutputs(raw) {
     return true;
   });
 
-  // Merge KPIs: prefer first real value over N/A
   const kpiMap = new Map();
   parsed.flatMap(d => d.kpis || []).forEach(k => {
     const isReal = v => v && v !== 'N/A' && v !== 'Data Not Provided' && !v.startsWith('Data Not');
@@ -614,7 +666,6 @@ function mergeN8nOutputs(raw) {
   });
   const kpis = [...kpiMap.values()];
 
-  // Merge dimensions: combine metrics per title
   const dimMap = new Map();
   parsed.flatMap(d => d.dimensions || []).forEach(dim => {
     if (!dimMap.has(dim.title)) {
@@ -623,7 +674,6 @@ function mergeN8nOutputs(raw) {
       const existing = dimMap.get(dim.title);
       const existingNames = new Set(existing.metrics.map(m => m.name));
       (dim.metrics || []).forEach(m => { if (!existingNames.has(m.name)) existing.metrics.push(m); });
-      // Escalate status: danger > warn > good
       const rank = { danger: 2, warn: 1, good: 0 };
       if ((rank[dim.status] || 0) > (rank[existing.status] || 0)) existing.status = dim.status;
     }
@@ -636,12 +686,16 @@ function mergeN8nOutputs(raw) {
 async function runAnalysis() {
   const btn = document.getElementById('analyze-btn');
   btn.disabled = true;
+  
+  // Start Phrases Audio
+  isProcessing = true;
+  playNextPhrase();
+
   showLoading('Sending to CFO Agent...', 'OCR extraction in progress');
   
   const form = new FormData();
-  let count = 0;
   for (const [key, file] of Object.entries(files)) {
-    if (file) { form.append(key, file); count++; }
+    if (file) { form.append(key, file); }
   }
   form.append('sessionId', sessionId);
 
@@ -673,6 +727,10 @@ async function runAnalysis() {
   }
 
   await new Promise(r => setTimeout(r, 400));
+  
+  // Stop Phrases Audio
+  stopPhrases();
+  
   hideLoading();
   document.getElementById('analyze-btn').disabled = false;
   document.getElementById('chat-btn').classList.add('show');
@@ -874,10 +932,6 @@ function parseMarkdown(text) {
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^###\s+(.+)$/gm, '<div style="font-weight:600;font-size:12px;margin:6px 0 3px;color:#1A1614;">$1</div>')
     .replace(/^[-•]\s+(.+)$/gm, '&bull; $1<br>')
-    .replace(/^\d+\.\s+(.+)$/gm, (_, item, offset, str) => {
-      const num = str.slice(0, offset).split('\n').filter(l => /^\d+\./.test(l)).length + 1;
-      return num + '. ' + item + '<br>';
-    })
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>')
     .replace(/\*/g, '');
