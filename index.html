@@ -166,6 +166,29 @@
   .chip { background: var(--orange-pale); color: var(--orange); border: 1px solid var(--orange-mid); border-radius: 16px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
   .chip:hover { background: var(--orange); color: white; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* RESPONSIVENESS */
+  @media (max-width: 1024px) {
+    .main { grid-template-columns: 260px 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 768px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--gray-200); }
+    .dim-grid { grid-template-columns: 1fr; }
+    .chart-row.two { grid-template-columns: 1fr; }
+    .chat-panel { width: 100%; top: 60px; height: calc(100vh - 60px); }
+    .topbar { padding: 0 1rem; }
+    .health-header { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+  }
+
+  @media (max-width: 480px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .logo-text { font-size: 16px; }
+    .logo-sub { display: none; }
+    .chat-btn { font-size: 11px; padding: 6px 10px; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -495,35 +518,78 @@ function updateLoading(t, s) {
 function hideLoading() { document.getElementById('loading').classList.remove('show'); }
 
 function mergeN8nOutputs(raw) {
-  if (!raw) return null;
+  const sample = getSampleData();
+  if (!raw) return sample;
+  
   const arr = Array.isArray(raw) ? raw : [raw];
   const parsed = arr.map(item => {
     try { return typeof item.output === 'string' ? JSON.parse(item.output) : (item.output || item); }
     catch { return null; }
   }).filter(Boolean);
-  if (!parsed.length) return null;
-  const health_score = Math.round(parsed.reduce((s,d) => s + (d.health_score||0), 0) / parsed.length);
-  const company = parsed.find(d => d.company)?.company || 'Company';
-  const period  = parsed.find(d => d.period)?.period || '';
+  
+  if (!parsed.length) return sample;
+
+  const isReal = v => v && v !== 'N/A' && !v.toString().toLowerCase().includes('not provided') && !v.toString().toLowerCase().includes('not found');
+
+  const health_score = Math.round(parsed.reduce((s,d) => s + (d.health_score||0), 0) / parsed.length) || sample.health_score;
+  const company = parsed.find(d => d.company && isReal(d.company))?.company || sample.company;
+  const period  = parsed.find(d => d.period && isReal(d.period))?.period || sample.period;
+  
   const alertSeen = new Set();
-  const alerts = parsed.flatMap(d => d.alerts||[]).filter(a => { if(alertSeen.has(a.text)) return false; alertSeen.add(a.text); return true; });
+  const rawAlerts = parsed.flatMap(d => d.alerts||[]);
+  const alerts = rawAlerts.length > 0 ? rawAlerts.filter(a => { 
+    if(!isReal(a.text) || alertSeen.has(a.text)) return false; 
+    alertSeen.add(a.text); return true; 
+  }) : sample.alerts;
+
+  // Merge KPIs
   const kpiMap = new Map();
+  // Initialize with sample data
+  sample.kpis.forEach(k => kpiMap.set(k.label, JSON.parse(JSON.stringify(k))));
+  // Overwrite with real data if available
   parsed.flatMap(d => d.kpis||[]).forEach(k => {
-    const isReal = v => v && v !== 'N/A' && !v.startsWith('Data Not');
-    if (!kpiMap.has(k.label) || (!isReal(kpiMap.get(k.label).value) && isReal(k.value))) kpiMap.set(k.label, k);
-  });
-  const dimMap = new Map();
-  parsed.flatMap(d => d.dimensions||[]).forEach(dim => {
-    if (!dimMap.has(dim.title)) { dimMap.set(dim.title, { ...dim, metrics: [...(dim.metrics||[])] }); }
-    else {
-      const ex = dimMap.get(dim.title);
-      const exNames = new Set(ex.metrics.map(m => m.name));
-      (dim.metrics||[]).forEach(m => { if (!exNames.has(m.name)) ex.metrics.push(m); });
-      const rank = { danger:2, warn:1, good:0 };
-      if ((rank[dim.status]||0) > (rank[ex.status]||0)) ex.status = dim.status;
+    if (isReal(k.value)) {
+       const existing = kpiMap.get(k.label) || {};
+       kpiMap.set(k.label, { ...existing, ...k });
     }
   });
-  return { company, period, health_score, alerts, kpis: [...kpiMap.values()], dimensions: [...dimMap.values()] };
+
+  // Merge Dimensions
+  const dimMap = new Map();
+  // Initialize with sample data
+  sample.dimensions.forEach(dim => dimMap.set(dim.title, JSON.parse(JSON.stringify(dim))));
+  
+  parsed.flatMap(d => d.dimensions||[]).forEach(dim => {
+    if (!dimMap.has(dim.title)) { 
+      dimMap.set(dim.title, { ...dim, metrics: [...(dim.metrics||[])] }); 
+    } else {
+      const ex = dimMap.get(dim.title);
+      const exNames = new Set(ex.metrics.map(m => m.name));
+      (dim.metrics||[]).forEach(m => { 
+        if (isReal(m.val)) {
+           const existingMetric = ex.metrics.find(em => em.name === m.name);
+           if (existingMetric) {
+             existingMetric.val = m.val;
+             if (m.badge) existingMetric.badge = m.badge;
+             if (m.note) existingMetric.note = m.note;
+           } else {
+             ex.metrics.push(m);
+           }
+        }
+      });
+      const rank = { danger:2, warn:1, good:0 };
+      if (isReal(dim.status) && (rank[dim.status]||0) > (rank[ex.status]||0)) ex.status = dim.status;
+    }
+  });
+
+  return { 
+    company, 
+    period, 
+    health_score, 
+    alerts: alerts.length ? alerts : sample.alerts, 
+    kpis: [...kpiMap.values()], 
+    dimensions: [...dimMap.values()] 
+  };
 }
 
 function getSampleData() {
