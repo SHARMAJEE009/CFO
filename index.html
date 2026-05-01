@@ -529,7 +529,11 @@ function mergeN8nOutputs(raw) {
   
   if (!parsed.length) return sample;
 
-  const isReal = v => v && v !== 'N/A' && !v.toString().toLowerCase().includes('not provided') && !v.toString().toLowerCase().includes('not found');
+  const isReal = v => {
+    if (v === undefined || v === null || v === '') return false;
+    const s = v.toString().toLowerCase();
+    return !['n/a', 'not provided', 'not found', 'data not available', 'unavailable', 'pending', '—'].some(term => s.includes(term));
+  };
 
   const health_score = Math.round(parsed.reduce((s,d) => s + (d.health_score||0), 0) / parsed.length) || sample.health_score;
   const company = parsed.find(d => d.company && isReal(d.company))?.company || sample.company;
@@ -582,17 +586,34 @@ function mergeN8nOutputs(raw) {
     }
   });
 
+  // Merge Charts
+  const sampleCharts = sample.charts || {};
+  const realCharts = parsed.find(d => d.charts)?.charts || {};
+  
+  const charts = {
+    pie: isRealArr(realCharts.pie) ? realCharts.pie : sampleCharts.pie,
+    bar: realCharts.bar && realCharts.bar.labels ? realCharts.bar : sampleCharts.bar,
+    stack: isRealArr(realCharts.stack) ? realCharts.stack : sampleCharts.stack,
+    donut: isRealArr(realCharts.donut) ? realCharts.donut : sampleCharts.donut,
+    radar: realCharts.radar && realCharts.radar.datasets ? realCharts.radar : sampleCharts.radar,
+    groupedBar: realCharts.groupedBar && realCharts.groupedBar.datasets ? realCharts.groupedBar : sampleCharts.groupedBar
+  };
+
+  function isRealArr(arr) { return Array.isArray(arr) && arr.length > 0 && arr.every(i => isReal(Object.values(i)[0])); }
+
   return { 
     company, 
     period, 
     health_score, 
     alerts: alerts.length ? alerts : sample.alerts, 
     kpis: [...kpiMap.values()], 
-    dimensions: [...dimMap.values()] 
+    dimensions: [...dimMap.values()],
+    charts
   };
 }
 
 function getSampleData() {
+  const C = { blue:'#123396', blueL:'#3B82F6', green:'#2E7D52', greenL:'#4CAF50', red:'#C0392B', amber:'#D4820A', teal:'#0F766E', gray:'#6B7280' };
   return {
     company: "MMX Foods Private Limited", period: "FY 2024 · Financial Health Report", health_score: 67,
     alerts: [
@@ -615,7 +636,55 @@ function getSampleData() {
       { title:"Operational Efficiency",status:"warn",   metrics:[{ name:"Inventory Turnover",val:"9.35x",badge:"warn",note:"▼ from 15.59x"},{name:"Receivables T/O",val:"12.75x",badge:"good",note:"▲ from 8.77x"},{name:"Payables T/O",val:"3.86x",badge:"warn",note:"▼ from 5.80x"}]},
       { title:"Cash Flow Health",      status:"warn",   metrics:[{ name:"Operating CF",val:"-₹3.53 Cr",badge:"bad",note:"Cash burn"},{name:"Investing CF",val:"-₹8.31 Cr",badge:"warn",note:"CapEx heavy"},{name:"Financing CF",val:"+₹11.84 Cr",badge:"warn",note:"OD funded"}]},
       { title:"Growth & Capital",      status:"warn",   metrics:[{ name:"Revenue Growth",val:"+0.02%",badge:"warn",note:"Flat"},{name:"Asset Growth",val:"+90.7%",badge:"good",note:"CWIP expansion"},{name:"EPS",val:"₹2.00",badge:"good",note:"▲ from ₹0.45"}]}
-    ]
+    ],
+    charts: {
+      pie: [
+        { label:'Fixed Assets', val:14.82, color:C.blue },
+        { label:'CWIP',         val:8.10,  color:C.blueL },
+        { label:'Inventory',    val:1.66,  color:C.teal },
+        { label:'Receivables',  val:1.21,  color:C.green },
+        { label:'Cash & Bank',  val:0.02,  color:C.amber },
+        { label:'Other Assets', val:3.91,  color:C.gray },
+      ],
+      bar: {
+        labels:['FY 2022','FY 2023','FY 2024'],
+        datasets:[
+          { label:'Revenue (₹ Cr)', data:[11.20,15.47,15.48], backgroundColor:C.blue, borderRadius:6 },
+          { label:'Net Profit (₹ L)', data:[10.50,17.30,41.12], backgroundColor:C.greenL, borderRadius:6, yAxisID:'y2' }
+        ]
+      },
+      stack: [
+        { label:'ROE',            val:12.51, max:25, unit:'%', color:C.green },
+        { label:'ROCE',           val:5.33,  max:15, unit:'%', color:C.amber },
+        { label:'Net Margin',     val:2.66,  max:10, unit:'%', color:C.blue },
+        { label:'Inventory T/O',  val:9.35,  max:20, unit:'x', color:C.teal },
+        { label:'Receivables T/O',val:12.75, max:20, unit:'x', color:C.greenL },
+        { label:'Debt-Equity',    val:6.48,  max:10, unit:'x', color:C.red },
+        { label:'Current Ratio',  val:0.61,  max:3,  unit:'x', color:C.red },
+        { label:'DSCR',           val:0.11,  max:3,  unit:'x', color:C.red },
+      ],
+      donut: [
+        { label:'Short-term OD',  val:20.70, color:C.red },
+        { label:'LT Borrowings',  val:0.19,  color:C.amber },
+        { label:'Trade Payables', val:4.01,  color:C.blueL },
+        { label:'Equity',         val:3.49,  color:C.green },
+        { label:'Other Liab.',    val:1.33,  color:C.gray },
+      ],
+      radar: {
+        labels:['Liquidity','Profitability','Leverage','Efficiency','Cash Flow','Growth'],
+        datasets:[
+          { label:'FY 2023', data:[72,42,55,68,55,45], borderColor:C.blueL, backgroundColor:'rgba(59,130,246,0.12)', pointBackgroundColor:C.blueL, borderWidth:2, pointRadius:4 },
+          { label:'FY 2024', data:[20,72,22,58,30,62], borderColor:C.blue,  backgroundColor:'rgba(18,51,150,0.12)',  pointBackgroundColor:C.blue,  borderWidth:2, pointRadius:4 }
+        ]
+      },
+      groupedBar: {
+        labels:['Inventory T/O','Receivables T/O','Payables T/O','Asset T/O'],
+        datasets:[
+          { label:'FY 2023', data:[15.59,8.77,5.80,0.99], backgroundColor:C.blueL, borderRadius:5 },
+          { label:'FY 2024', data:[9.35,12.75,3.86,0.52], backgroundColor:C.blue,  borderRadius:5 }
+        ]
+      }
+    }
   };
 }
 
@@ -670,133 +739,111 @@ function renderDashboard(d) {
   });
 
   analysisData = d;
-  if (!chartsBuilt) { buildCharts(); chartsBuilt = true; }
+  buildCharts(d.charts);
 }
 
-// ── CHARTS ──
-const C = {
-  blue:'#123396', blueL:'#3B82F6',
-  green:'#2E7D52', greenL:'#4CAF50',
-  red:'#C0392B',
-  amber:'#D4820A',
-  teal:'#0F766E',
-  gray:'#6B7280'
-};
+let currentCharts = {};
 
-function buildCharts() {
+function buildCharts(charts) {
+  // Destroy existing charts if they exist
+  Object.values(currentCharts).forEach(c => { if(c && typeof c.destroy === 'function') c.destroy(); });
+  currentCharts = {};
+
   // 1. PIE
-  const pieData = [
-    { label:'Fixed Assets', val:14.82, color:C.blue },
-    { label:'CWIP',         val:8.10,  color:C.blueL },
-    { label:'Inventory',    val:1.66,  color:C.teal },
-    { label:'Receivables',  val:1.21,  color:C.green },
-    { label:'Cash & Bank',  val:0.02,  color:C.amber },
-    { label:'Other Assets', val:3.91,  color:C.gray },
-  ];
-  new Chart(document.getElementById('pieChart'), {
-    type:'pie',
-    data:{ labels: pieData.map(d=>d.label), datasets:[{ data: pieData.map(d=>d.val), backgroundColor: pieData.map(d=>d.color), borderWidth:2, borderColor:'#fff' }] },
-    options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ₹${ctx.parsed.toFixed(2)} Cr`}} } }
-  });
+  const pieData = charts.pie;
+  const pieCtx = document.getElementById('pieChart');
+  if (pieCtx) {
+    currentCharts.pie = new Chart(pieCtx, {
+      type:'pie',
+      data:{ labels: pieData.map(d=>d.label), datasets:[{ data: pieData.map(d=>d.val), backgroundColor: pieData.map(d=>d.color), borderWidth:2, borderColor:'#fff' }] },
+      options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ₹${ctx.parsed.toFixed(2)} Cr`}} } }
+    });
+  }
   const pieLeg = document.getElementById('pieLegend');
-  pieData.forEach(d => { pieLeg.innerHTML += `<div class="pie-legend-row"><div class="pie-legend-dot" style="background:${d.color}"></div><span>${d.label}</span><span class="pie-legend-val">₹${d.val.toFixed(2)} Cr</span></div>`; });
+  if (pieLeg) {
+    pieLeg.innerHTML = '';
+    pieData.forEach(d => { pieLeg.innerHTML += `<div class="pie-legend-row"><div class="pie-legend-dot" style="background:${d.color}"></div><span>${d.label}</span><span class="pie-legend-val">₹${d.val.toFixed(2)} Cr</span></div>`; });
+  }
 
   // 2. BAR — Revenue vs Profit
-  new Chart(document.getElementById('barChart'), {
-    type:'bar',
-    data:{
-      labels:['FY 2022','FY 2023','FY 2024'],
-      datasets:[
-        { label:'Revenue (₹ Cr)', data:[11.20,15.47,15.48], backgroundColor:C.blue, borderRadius:6 },
-        { label:'Net Profit (₹ L)', data:[10.50,17.30,41.12], backgroundColor:C.greenL, borderRadius:6, yAxisID:'y2' }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      scales:{
-        y:{ grid:{color:'#F0F2FA'}, ticks:{callback:v=>'₹'+v+'Cr'} },
-        y2:{ position:'right', grid:{display:false}, ticks:{callback:v=>'₹'+v+'L'} }
-      },
-      plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
-    }
-  });
+  const barCtx = document.getElementById('barChart');
+  if (barCtx) {
+    currentCharts.bar = new Chart(barCtx, {
+      type:'bar',
+      data: charts.bar,
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{
+          y:{ grid:{color:'#F0F2FA'}, ticks:{callback:v=>'₹'+v+'Cr'} },
+          y2:{ position:'right', grid:{display:false}, ticks:{callback:v=>'₹'+v+'L'} }
+        },
+        plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
+      }
+    });
+  }
 
   // 3. KPI STACKS
-  const stackMetrics = [
-    { label:'ROE',            val:12.51, max:25, unit:'%', color:C.green },
-    { label:'ROCE',           val:5.33,  max:15, unit:'%', color:C.amber },
-    { label:'Net Margin',     val:2.66,  max:10, unit:'%', color:C.blue },
-    { label:'Inventory T/O',  val:9.35,  max:20, unit:'x', color:C.teal },
-    { label:'Receivables T/O',val:12.75, max:20, unit:'x', color:C.greenL },
-    { label:'Debt-Equity',    val:6.48,  max:10, unit:'x', color:C.red },
-    { label:'Current Ratio',  val:0.61,  max:3,  unit:'x', color:C.red },
-    { label:'DSCR',           val:0.11,  max:3,  unit:'x', color:C.red },
-  ];
+  const stackMetrics = charts.stack;
   const kpiStack = document.getElementById('kpiStack');
-  stackMetrics.forEach(m => {
-    const pct = Math.min(100, (m.val / m.max) * 100);
-    kpiStack.innerHTML += `<div class="kpi-stack-row">
-      <div class="kpi-stack-label">${m.label}</div>
-      <div class="kpi-stack-bar-wrap">
-        <div class="kpi-stack-bar" style="width:${pct}%;background:${m.color};">
-          ${pct>20?`<span class="kpi-stack-val">${m.val}${m.unit}</span>`:''}
+  if (kpiStack) {
+    kpiStack.innerHTML = '';
+    stackMetrics.forEach(m => {
+      const pct = Math.min(100, (m.val / m.max) * 100);
+      kpiStack.innerHTML += `<div class="kpi-stack-row">
+        <div class="kpi-stack-label">${m.label}</div>
+        <div class="kpi-stack-bar-wrap">
+          <div class="kpi-stack-bar" style="width:${pct}%;background:${m.color};">
+            ${pct>20?`<span class="kpi-stack-val">${m.val}${m.unit}</span>`:''}
+          </div>
         </div>
-      </div>
-      <div class="kpi-stack-num">${m.val}${m.unit}</div>
-    </div>`;
-  });
+        <div class="kpi-stack-num">${m.val}${m.unit}</div>
+      </div>`;
+    });
+  }
 
   // 4. DONUT
-  const donutData = [
-    { label:'Short-term OD',  val:20.70, color:C.red },
-    { label:'LT Borrowings',  val:0.19,  color:C.amber },
-    { label:'Trade Payables', val:4.01,  color:C.blueL },
-    { label:'Equity',         val:3.49,  color:C.green },
-    { label:'Other Liab.',    val:1.33,  color:C.gray },
-  ];
-  new Chart(document.getElementById('donutChart'), {
-    type:'doughnut',
-    data:{ labels: donutData.map(d=>d.label), datasets:[{ data: donutData.map(d=>d.val), backgroundColor: donutData.map(d=>d.color), borderWidth:2, borderColor:'#fff', hoverOffset:6 }] },
-    options:{ responsive:true, maintainAspectRatio:true, cutout:'60%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ₹${ctx.parsed.toFixed(2)} Cr`}} } }
-  });
+  const donutData = charts.donut;
+  const donutCtx = document.getElementById('donutChart');
+  if (donutCtx) {
+    currentCharts.donut = new Chart(donutCtx, {
+      type:'doughnut',
+      data:{ labels: donutData.map(d=>d.label), datasets:[{ data: donutData.map(d=>d.val), backgroundColor: donutData.map(d=>d.color), borderWidth:2, borderColor:'#fff', hoverOffset:6 }] },
+      options:{ responsive:true, maintainAspectRatio:true, cutout:'60%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ₹${ctx.parsed.toFixed(2)} Cr`}} } }
+    });
+  }
   const donutLeg = document.getElementById('donutLegend');
-  donutData.forEach(d => { donutLeg.innerHTML += `<div class="pie-legend-row"><div class="pie-legend-dot" style="background:${d.color}"></div><span>${d.label}</span><span class="pie-legend-val">₹${d.val.toFixed(2)} Cr</span></div>`; });
+  if (donutLeg) {
+    donutLeg.innerHTML = '';
+    donutData.forEach(d => { donutLeg.innerHTML += `<div class="pie-legend-row"><div class="pie-legend-dot" style="background:${d.color}"></div><span>${d.label}</span><span class="pie-legend-val">₹${d.val.toFixed(2)} Cr</span></div>`; });
+  }
 
   // 5. RADAR
-  new Chart(document.getElementById('radarChart'), {
-    type:'radar',
-    data:{
-      labels:['Liquidity','Profitability','Leverage','Efficiency','Cash Flow','Growth'],
-      datasets:[
-        { label:'FY 2023', data:[72,42,55,68,55,45], borderColor:C.blueL, backgroundColor:'rgba(59,130,246,0.12)', pointBackgroundColor:C.blueL, borderWidth:2, pointRadius:4 },
-        { label:'FY 2024', data:[20,72,22,58,30,62], borderColor:C.blue,  backgroundColor:'rgba(18,51,150,0.12)',  pointBackgroundColor:C.blue,  borderWidth:2, pointRadius:4 }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      scales:{ r:{ min:0, max:100, ticks:{display:false}, grid:{color:'#E5E7EB'}, pointLabels:{font:{size:11,weight:'500'},color:'#1E2A4A'} } },
-      plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
-    }
-  });
+  const radarCtx = document.getElementById('radarChart');
+  if (radarCtx) {
+    currentCharts.radar = new Chart(radarCtx, {
+      type:'radar',
+      data: charts.radar,
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{ r:{ min:0, max:100, ticks:{display:false}, grid:{color:'#E5E7EB'}, pointLabels:{font:{size:11,weight:'500'},color:'#1E2A4A'} } },
+        plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
+      }
+    });
+  }
 
   // 6. GROUPED BAR — Turnover
-  new Chart(document.getElementById('groupedBar'), {
-    type:'bar',
-    data:{
-      labels:['Inventory T/O','Receivables T/O','Payables T/O','Asset T/O'],
-      datasets:[
-        { label:'FY 2023', data:[15.59,8.77,5.80,0.99], backgroundColor:C.blueL, borderRadius:5 },
-        { label:'FY 2024', data:[9.35,12.75,3.86,0.52], backgroundColor:C.blue,  borderRadius:5 }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      scales:{ x:{grid:{display:false}}, y:{grid:{color:'#F0F2FA'},ticks:{callback:v=>v+'x'}} },
-      plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
-    }
-  });
-
-
+  const groupedBarCtx = document.getElementById('groupedBar');
+  if (groupedBarCtx) {
+    currentCharts.groupedBar = new Chart(groupedBarCtx, {
+      type:'bar',
+      data: charts.groupedBar,
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        scales:{ x:{grid:{display:false}}, y:{grid:{color:'#F0F2FA'},ticks:{callback:v=>v+'x'}} },
+        plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
+      }
+    });
+  }
 }
 
 // ── CHAT ──
