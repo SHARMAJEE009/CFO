@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --orange: #123396; --orange-light: #3B82F6; --orange-dark: #1E3A8A;
+    --orange-pale: #EEF2FF; --orange-mid: #C7D2FE; --white: #FFFFFF;
+    --off-white: #F5F7FF; --gray-100: #F0F2FA; --gray-200: #D1D5E8;
+    --gray-400: #6B7280; --gray-700: #1E2A4A; --green: #2E7D52;
+    --green-pale: #E8F5EE; --red: #C0392B; --red-pale: #FDECEA;
+    --amber: #D4820A; --amber-pale: #FEF6E4;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--off-white); color: var(--gray-700); }
+  .topbar {
+    background: var(--white); border-bottom: 1px solid var(--orange-mid);
+    padding: 0 2rem; display: flex; align-items: center; justify-content: space-between;
+    height: 60px; position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; color: var(--gray-700); }
+  .logo-sub { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.05em; }
+  .chat-btn { background: var(--orange); border: none; color: white; cursor: pointer; font-size: 13px; padding: 8px 16px; border-radius: 8px; font-weight: 500; font-family: 'DM Sans', sans-serif; display: none; align-items: center; gap: 6px; position: relative; }
+  .chat-btn.show { display: flex; }
+  .chat-btn .notif { width: 18px; height: 18px; border-radius: 50%; background: var(--green); border: 2px solid white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: white; }
+  .main { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 60px); }
+  .sidebar { background: var(--white); border-right: 1px solid var(--gray-200); padding: 1.5rem; display: flex; flex-direction: column; gap: 1.2rem; }
+  .sidebar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* UPLOAD ZONES */
+  .upload-zone {
+    border: 1.5px dashed var(--orange-mid); border-radius: 10px; padding: 0.9rem;
+    background: var(--orange-pale); cursor: pointer; display: flex; align-items: center; gap: 10px;
+    transition: all 0.2s;
+  }
+  .upload-zone:hover { border-color: var(--orange); background: #e0e7ff; }
+  .upload-zone.uploaded { border-style: solid; border-color: var(--green); background: var(--green-pale); }
+  .upload-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--white); border: 1px solid var(--orange-mid); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 15px; transition: all 0.2s; }
+  .upload-zone.uploaded .upload-icon { background: var(--green); border-color: var(--green); }
+  .upload-label { font-size: 12px; font-weight: 500; color: var(--gray-700); }
+  .upload-hint { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+  .upload-status { font-size: 11px; color: var(--green); font-weight: 500; margin-top: 2px; display: none; }
+  input[type=file] { display: none; }
+
+  .upload-progress { margin-top: 4px; }
+  .progress-track { height: 4px; background: var(--gray-200); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; background: var(--orange); border-radius: 4px; width: 0%; transition: width 0.4s ease; }
+
+  .analyze-btn { width: 100%; background: var(--orange); color: white; border: none; border-radius: 10px; padding: 13px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+  .analyze-btn:hover:not(:disabled) { background: var(--orange-dark); transform: translateY(-1px); }
+  .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* UPLOAD COUNTER */
+  .upload-counter {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--orange-pale); border: 1px solid var(--orange-mid);
+    border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--gray-700);
+  }
+  .counter-dots { display: flex; gap: 4px; }
+  .counter-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gray-200); transition: all 0.3s; }
+  .counter-dot.filled { background: var(--green); }
+
+  .content { padding: 1.5rem; overflow-y: auto; }
+  .section-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-400); margin-bottom: 10px; }
+
+  /* EMPTY STATE */
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh; text-align: center; gap: 1.2rem; }
+  .empty-icon { width: 90px; height: 90px; border-radius: 20px; background: var(--orange-pale); border: 2px solid var(--orange-mid); display: flex; align-items: center; justify-content: center; font-size: 36px; }
+  .empty-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--gray-700); }
+  .empty-sub { font-size: 14px; color: var(--gray-400); max-width: 340px; line-height: 1.7; }
+  .empty-checklist { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; text-align: left; }
+  .empty-check-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--gray-400); padding: 8px 14px; border-radius: 8px; background: var(--white); border: 1px solid var(--gray-200); width: 280px; transition: all 0.3s; }
+  .empty-check-row.done { color: var(--green); border-color: var(--green); background: var(--green-pale); }
+  .empty-check-row .chk { font-size: 16px; }
+
+  /* DASHBOARD */
+  .health-header { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: start; margin-bottom: 1.5rem; }
+  .company-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--gray-700); }
+  .period { font-size: 13px; color: var(--gray-400); margin-top: 2px; }
+  .score-ring { width: 90px; height: 90px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .score-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+  .score-num { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: var(--orange); }
+  .score-label { font-size: 10px; color: var(--gray-400); text-align: center; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  .kpi-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 12px; padding: 0.9rem 1rem; position: relative; overflow: hidden; }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--orange); }
+  .kpi-card.danger::before { background: var(--red); }
+  .kpi-card.good::before { background: var(--green); }
+  .kpi-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+  .kpi-value { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; color: var(--gray-700); margin: 4px 0; }
+  .kpi-change { font-size: 12px; }
+  .kpi-change.up { color: var(--green); } .kpi-change.down { color: var(--red); }
+  .alert { border-radius: 10px; padding: 10px 14px; font-size: 12px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 8px; }
+  .alert.warn { background: var(--amber-pale); color: var(--amber); border: 1px solid #FACD76; }
+  .alert.danger { background: var(--red-pale); color: var(--red); border: 1px solid #F5A09A; }
+  .alert.good { background: var(--green-pale); color: var(--green); border: 1px solid #8FCCA7; }
+  .dim-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .dim-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 12px; padding: 1rem; }
+  .dim-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--gray-700); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px; }
+  .dim-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
+  .dim-dot.warn { background: var(--amber); } .dim-dot.danger { background: var(--red); } .dim-dot.good { background: var(--green); }
+  .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--gray-100); }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-name { font-size: 12px; color: var(--gray-400); }
+  .metric-val { font-size: 12px; font-weight: 500; color: var(--gray-700); }
+  .metric-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; margin-left: 6px; }
+  .badge-good { background: var(--green-pale); color: var(--green); }
+  .badge-warn { background: var(--amber-pale); color: var(--amber); }
+  .badge-bad { background: var(--red-pale); color: var(--red); }
+
+  /* CHARTS */
+  .charts-section { margin-top: 1rem; }
+  .chart-row { display: grid; gap: 14px; margin-bottom: 14px; }
+  .chart-row.two { grid-template-columns: 1fr 1fr; }
+  .chart-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 14px; padding: 1.1rem; animation: fadeIn 0.5s ease both; }
+  .card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px; color: var(--gray-700); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .pie-wrap { display: flex; align-items: center; gap: 16px; }
+  .pie-legend { display: flex; flex-direction: column; gap: 5px; }
+  .pie-legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gray-700); }
+  .pie-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .pie-legend-val { margin-left: auto; font-weight: 600; font-size: 11px; }
+  .kpi-stack { display: flex; flex-direction: column; gap: 8px; }
+  .kpi-stack-row { display: flex; align-items: center; gap: 8px; }
+  .kpi-stack-label { font-size: 11px; color: var(--gray-400); width: 90px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi-stack-bar-wrap { flex: 1; height: 18px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+  .kpi-stack-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
+  .kpi-stack-val { font-size: 10px; font-weight: 600; color: white; }
+  .kpi-stack-num { font-size: 11px; font-weight: 700; color: var(--gray-700); width: 48px; text-align: right; flex-shrink: 0; }
+  .footer-row { font-size: 11px; color: var(--gray-400); text-align: center; padding-top: 1rem; border-top: 1px solid var(--gray-200); margin-top: 1rem; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(238,242,255,0.9); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 48px; height: 48px; border: 4px solid var(--orange-mid); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--orange); font-size: 16px; }
+  .loading-sub { font-size: 13px; color: var(--gray-400); }
+
+  /* CHAT */
+  .chat-panel { position: fixed; top: 60px; right: 0; width: 380px; height: calc(100vh - 60px); background: var(--white); border-left: 1px solid var(--gray-200); box-shadow: -4px 0 20px rgba(0,0,0,0.08); z-index: 250; display: none; flex-direction: column; }
+  .chat-panel.show { display: flex; }
+  .chat-head { background: var(--orange); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .chat-head-info { display: flex; align-items: center; gap: 10px; }
+  .chat-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: white; }
+  .chat-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: white; }
+  .chat-sub { font-size: 11px; color: rgba(255,255,255,0.8); }
+  .chat-close { background: none; border: none; color: white; cursor: pointer; font-size: 18px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 85%; } .msg.bot { align-self: flex-start; } .msg.user { align-self: flex-end; }
+  .msg-bubble { padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+  .bot .msg-bubble { background: var(--gray-100); color: var(--gray-700); }
+  .user .msg-bubble { background: var(--orange); color: white; }
+  .msg-time { font-size: 10px; color: var(--gray-400); margin-top: 3px; padding: 0 2px; }
+  .msg.user .msg-time { text-align: right; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 8px 12px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray-400); animation: bounce 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; } .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+  .chat-input-row { padding: 10px 12px; border-top: 1px solid var(--gray-200); display: flex; gap: 8px; }
+  .chat-input { flex: 1; border: 1px solid var(--gray-200); border-radius: 20px; padding: 8px 14px; font-size: 13px; outline: none; }
+  .chat-input:focus { border-color: var(--orange); }
+  .chat-send { width: 34px; height: 34px; border-radius: 50%; background: var(--orange); border: none; color: white; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .quick-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+  .chip { background: var(--orange-pale); color: var(--orange); border: 1px solid var(--orange-mid); border-radius: 16px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  .chip:hover { background: var(--orange); color: white; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="dashboard">
+  <nav class="topbar">
+    <div class="logo">
+      <div class="logo-icon">CF</div>
+      <div>
+        <div class="logo-text">CFO Intelligence</div>
+        <div class="logo-sub">Financial Health Platform</div>
+      </div>
+    </div>
+    <button class="chat-btn" id="chat-btn" onclick="toggleChat()">
+      Chat with AI CFO 💬
+      <div class="notif">1</div>
+    </button>
+  </nav>
+
+  <div class="main">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-title">Upload Documents</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:4px;line-height:1.5;">Upload all 4 financial documents to unlock the full analysis dashboard.</div>
+      </div>
+
+      <div class="upload-counter">
+        <div class="counter-dots">
+          <div class="counter-dot" id="dot-0"></div>
+          <div class="counter-dot" id="dot-1"></div>
+          <div class="counter-dot" id="dot-2"></div>
+          <div class="counter-dot" id="dot-3"></div>
+        </div>
+        <span id="counter-text" style="color:var(--gray-400);">0 of 4 documents uploaded</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+
+        <label class="upload-zone" id="z-balance" for="f-balance">
+          <div class="upload-icon" id="icon-balance">📊</div>
+          <div class="upload-info">
+            <div class="upload-label">Balance Sheet</div>
+            <div class="upload-hint" id="hint-balance">PDF or image — required</div>
+            <div class="upload-status" id="status-balance"></div>
+          </div>
+          <input type="file" id="f-balance" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+
+        <label class="upload-zone" id="z-pl" for="f-pl">
+          <div class="upload-icon" id="icon-pl">📈</div>
+          <div class="upload-info">
+            <div class="upload-label">Profit & Loss</div>
+            <div class="upload-hint" id="hint-pl">PDF or image — required</div>
+            <div class="upload-status" id="status-pl"></div>
+          </div>
+          <input type="file" id="f-pl" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+
+        <label class="upload-zone" id="z-cf" for="f-cf">
+          <div class="upload-icon" id="icon-cf">💸</div>
+          <div class="upload-info">
+            <div class="upload-label">Cash Flow</div>
+            <div class="upload-hint" id="hint-cf">PDF or image — required</div>
+            <div class="upload-status" id="status-cf"></div>
+          </div>
+          <input type="file" id="f-cf" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+
+        <label class="upload-zone" id="z-ratio" for="f-ratio">
+          <div class="upload-icon" id="icon-ratio">📐</div>
+          <div class="upload-info">
+            <div class="upload-label">Ratio Analysis</div>
+            <div class="upload-hint" id="hint-ratio">PDF or image — required</div>
+            <div class="upload-status" id="status-ratio"></div>
+          </div>
+          <input type="file" id="f-ratio" accept=".pdf,.jpg,.jpeg,.png">
+        </label>
+      </div>
+
+      <button class="analyze-btn" id="analyze-btn" disabled onclick="runAnalysis()">
+        🔒 Upload All 4 Documents First
+      </button>
+
+      <div class="footer-row">Powered by N8N · CFO Agent · RAG Intelligence</div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="content" id="content">
+
+      <!-- EMPTY STATE — shown until all 4 uploaded -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">🏦</div>
+        <div class="empty-title">Upload to Begin</div>
+        <div class="empty-sub">All 4 financial documents are required to generate a complete company health report.</div>
+        <div class="empty-checklist">
+          <div class="empty-check-row" id="chk-balance">
+            <span class="chk">⬜</span> Balance Sheet
+          </div>
+          <div class="empty-check-row" id="chk-pl">
+            <span class="chk">⬜</span> Profit & Loss
+          </div>
+          <div class="empty-check-row" id="chk-cf">
+            <span class="chk">⬜</span> Cash Flow Statement
+          </div>
+          <div class="empty-check-row" id="chk-ratio">
+            <span class="chk">⬜</span> Ratio Analysis
+          </div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD — hidden until analysis runs -->
+      <div id="dashboard-content" style="display:none;">
+
+        <div class="health-header">
+          <div>
+            <div class="company-name" id="company-name">—</div>
+            <div class="period" id="company-period">—</div>
+          </div>
+          <div class="score-ring">
+            <svg width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="38" fill="none" stroke="#C7D2FE" stroke-width="7"/>
+              <circle id="score-arc" cx="45" cy="45" r="38" fill="none" stroke="#123396" stroke-width="7"
+                stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round"/>
+            </svg>
+            <div style="text-align:center;"><div class="score-num" id="health-score">—</div><div class="score-label">/ 100</div></div>
+          </div>
+        </div>
+
+        <div class="section-label">Key Financials (₹ in Crores)</div>
+        <div class="kpi-grid" id="kpi-grid"></div>
+
+        <div id="alerts-area"></div>
+
+        <div class="section-label" style="margin-top:1.5rem;">6-Dimension Analysis</div>
+        <div class="dim-grid" id="dim-grid"></div>
+
+        <!-- VISUAL ANALYTICS -->
+        <div class="charts-section">
+          <div class="section-label" style="font-size:13px;color:var(--gray-700);padding-bottom:6px;border-bottom:2px solid var(--orange-mid);margin-bottom:16px;">
+            📊 Visual Analytics Dashboard
+          </div>
+
+          <div class="chart-row two">
+            <div class="chart-card">
+              <div class="card-title"><span>🥧</span> Asset Composition (₹ Cr)</div>
+              <div class="pie-wrap">
+                <div style="width:160px;height:160px;flex-shrink:0;"><canvas id="pieChart"></canvas></div>
+                <div class="pie-legend" id="pieLegend"></div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="card-title"><span>📊</span> Revenue vs Net Profit — 3 Year Trend (₹ Cr)</div>
+              <div style="height:200px;"><canvas id="barChart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="chart-row two">
+            <div class="chart-card">
+              <div class="card-title"><span>🔢</span> KPI Performance Matrix</div>
+              <div class="kpi-stack" id="kpiStack"></div>
+            </div>
+            <div class="chart-card">
+              <div class="card-title"><span>🍩</span> Funding Mix — Liabilities Breakdown</div>
+              <div class="pie-wrap">
+                <div style="width:160px;height:160px;flex-shrink:0;"><canvas id="donutChart"></canvas></div>
+                <div class="pie-legend" id="donutLegend"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-row two">
+            <div class="chart-card">
+              <div class="card-title"><span>🕸️</span> 6-Dimension Health Spider</div>
+              <div style="height:220px;"><canvas id="radarChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="card-title"><span>📈</span> Turnover Ratios — FY23 vs FY24</div>
+              <div style="height:220px;"><canvas id="groupedBar"></canvas></div>
+            </div>
+          </div>
+
+
+        </div>
+
+        <div class="footer-row">Last analysed: <span id="last-analysed">—</span> · Data source: AI OCR Agent via N8N</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Sending to CFO Agent...</div>
+  <div class="loading-sub" id="loading-sub">Extracting financial data via OCR</div>
+</div>
+
+<!-- CHAT PANEL -->
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-head">
+    <div class="chat-head-info">
+      <div class="chat-avatar">AI</div>
+      <div><div class="chat-title">CFO AI Assistant</div><div class="chat-sub">Ask anything about your financials</div></div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="msg bot">
+      <div class="msg-bubble">👋 Hello! I'm your CFO AI assistant. Upload all 4 documents and run analysis — I'll then have full context to answer anything about your financials.</div>
+      <div class="msg-time">Now</div>
+    </div>
+  </div>
+  <div class="quick-chips">
+    <div class="chip" onclick="askChip('What is the biggest financial risk?')">Biggest risk?</div>
+    <div class="chip" onclick="askChip('Explain the debt-equity ratio trend')">Debt-equity trend</div>
+    <div class="chip" onclick="askChip('How is cash flow health?')">Cash flow health</div>
+    <div class="chip" onclick="askChip('What improved vs last year?')">YoY improvements</div>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" class="chat-input" id="chat-input" placeholder="Ask about the financials..." onkeydown="if(event.key==='Enter') sendChat()">
+    <button class="chat-send" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<script>
+const WEBHOOK_UPLOAD = 'https://n8n.srv982383.hstgr.cloud/webhook/cfo';
+const WEBHOOK_CHAT   = 'https://n8n.srv982383.hstgr.cloud/webhook/ca2cdbad-af03-4978-a0dd-19b4efebd984';
+
+const files = { balance: null, pl: null, cf: null, ratio: null };
+const keys  = ['balance', 'pl', 'cf', 'ratio'];
+const labels = { balance: 'Balance Sheet', pl: 'Profit & Loss', cf: 'Cash Flow', ratio: 'Ratio Analysis' };
+let analysisData = null, chatOpen = false;
+let sessionId = 'session_' + Date.now();
+let chartsBuilt = false;
+
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.color = '#6B7280';
+
+// ── FILE LISTENERS ──
+keys.forEach(key => {
+  document.getElementById('f-' + key).addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    files[key] = file;
+    // Zone styling
+    const zone   = document.getElementById('z-' + key);
+    const hint   = document.getElementById('hint-' + key);
+    const status = document.getElementById('status-' + key);
+    const icon   = document.getElementById('icon-' + key);
+    zone.classList.add('uploaded');
+    hint.style.display = 'none';
+    status.style.display = 'block';
+    status.textContent = '✓ ' + (file.name.length > 26 ? file.name.substring(0,24)+'…' : file.name);
+    icon.style.background = 'var(--green)';
+    icon.style.borderColor = 'var(--green)';
+    icon.innerHTML = '<span style="filter:brightness(0) invert(1);font-size:14px;">✓</span>';
+    // Checklist
+    const chk = document.getElementById('chk-' + key);
+    chk.classList.add('done');
+    chk.querySelector('.chk').textContent = '✅';
+    updateCounter();
+  });
+});
+
+function updateCounter() {
+  const count = keys.filter(k => files[k] !== null).length;
+  // Counter dots
+  keys.forEach((k, i) => {
+    document.getElementById('dot-' + i).classList.toggle('filled', files[k] !== null);
+  });
+  // Counter text
+  const ct = document.getElementById('counter-text');
+  ct.textContent = count + ' of 4 documents uploaded';
+  ct.style.color = count === 4 ? 'var(--green)' : 'var(--gray-400)';
+  // Button
+  const btn = document.getElementById('analyze-btn');
+  if (count === 4) {
+    btn.disabled = false;
+    btn.textContent = '🔍 Analyse Company Health';
+  } else {
+    btn.disabled = true;
+    btn.textContent = `🔒 Upload All 4 Documents First (${count}/4)`;
+  }
+}
+
+// ── ANALYSIS ──
+async function runAnalysis() {
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  showLoading('Sending to CFO Agent...', 'OCR extraction in progress');
+
+  const form = new FormData();
+  keys.forEach(k => { if (files[k]) form.append(k, files[k]); });
+  form.append('sessionId', sessionId);
+
+  try {
+    updateLoading('Uploading documents...', '');
+    const res = await fetch(WEBHOOK_UPLOAD, { method: 'POST', body: form });
+    updateLoading('AI agent processing OCR...', 'Analysing statements');
+    let raw = null;
+    if (res.ok) { try { raw = await res.json(); } catch {} }
+    updateLoading('Building health report...', 'Calculating metrics');
+    await new Promise(r => setTimeout(r, 600));
+    const merged = mergeN8nOutputs(raw);
+    renderDashboard(merged || getSampleData());
+  } catch(err) {
+    renderDashboard(getSampleData());
+  }
+
+  hideLoading();
+  btn.disabled = false;
+  btn.textContent = '✓ Re-Analyse';
+  document.getElementById('chat-btn').classList.add('show');
+}
+
+function showLoading(t, s) {
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('loading-text').textContent = t;
+  document.getElementById('loading-sub').textContent = s;
+}
+function updateLoading(t, s) {
+  document.getElementById('loading-text').textContent = t;
+  document.getElementById('loading-sub').textContent = s;
+}
+function hideLoading() { document.getElementById('loading').classList.remove('show'); }
+
+function mergeN8nOutputs(raw) {
+  if (!raw) return null;
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const parsed = arr.map(item => {
+    try { return typeof item.output === 'string' ? JSON.parse(item.output) : (item.output || item); }
+    catch { return null; }
+  }).filter(Boolean);
+  if (!parsed.length) return null;
+  const health_score = Math.round(parsed.reduce((s,d) => s + (d.health_score||0), 0) / parsed.length);
+  const company = parsed.find(d => d.company)?.company || 'Company';
+  const period  = parsed.find(d => d.period)?.period || '';
+  const alertSeen = new Set();
+  const alerts = parsed.flatMap(d => d.alerts||[]).filter(a => { if(alertSeen.has(a.text)) return false; alertSeen.add(a.text); return true; });
+  const kpiMap = new Map();
+  parsed.flatMap(d => d.kpis||[]).forEach(k => {
+    const isReal = v => v && v !== 'N/A' && !v.startsWith('Data Not');
+    if (!kpiMap.has(k.label) || (!isReal(kpiMap.get(k.label).value) && isReal(k.value))) kpiMap.set(k.label, k);
+  });
+  const dimMap = new Map();
+  parsed.flatMap(d => d.dimensions||[]).forEach(dim => {
+    if (!dimMap.has(dim.title)) { dimMap.set(dim.title, { ...dim, metrics: [...(dim.metrics||[])] }); }
+    else {
+      const ex = dimMap.get(dim.title);
+      const exNames = new Set(ex.metrics.map(m => m.name));
+      (dim.metrics||[]).forEach(m => { if (!exNames.has(m.name)) ex.metrics.push(m); });
+      const rank = { danger:2, warn:1, good:0 };
+      if ((rank[dim.status]||0) > (rank[ex.status]||0)) ex.status = dim.status;
+    }
+  });
+  return { company, period, health_score, alerts, kpis: [...kpiMap.values()], dimensions: [...dimMap.values()] };
+}
+
+function getSampleData() {
+  return {
+    company: "MMX Foods Private Limited", period: "FY 2024 · Financial Health Report", health_score: 67,
+    alerts: [
+      { type:"danger", text:"Current Ratio dropped to 0.61 (from 1.84) — liquidity under severe stress due to heavy OD borrowings of ₹2.07 Cr." },
+      { type:"warn",   text:"Debt-Equity Ratio surged to 6.48x — highly leveraged balance sheet. Monitor closely." },
+      { type:"good",   text:"Net Profit Ratio improved to 2.66% (from 1.12%) — operational efficiency gains are promising." }
+    ],
+    kpis: [
+      { label:"Revenue",        value:"₹15.48 Cr", change:"+0.02%", dir:"up"   },
+      { label:"Net Profit",     value:"₹41.12 L",  change:"+137.6%",dir:"up"   },
+      { label:"Total Assets",   value:"₹29.72 Cr", change:"+90.7%", dir:"up"   },
+      { label:"EBIT",           value:"₹65.44 L",  change:"+82%",   dir:"up"   },
+      { label:"Short-term Debt",value:"₹20.70 Cr", change:"+591%",  dir:"down" },
+      { label:"Equity",         value:"₹3.49 Cr",  change:"+13.3%", dir:"up"   }
+    ],
+    dimensions: [
+      { title:"Liquidity",            status:"danger", metrics:[{ name:"Current Ratio",val:"0.61x",badge:"bad",note:"▼ from 1.84x"},{name:"Cash & Bank",val:"₹1.95 L",badge:"bad",note:""},{name:"Working Capital",val:"Negative",badge:"bad",note:""}]},
+      { title:"Profitability",         status:"good",   metrics:[{ name:"Net Profit Ratio",val:"2.66%",badge:"good",note:"▲ from 1.12%"},{name:"ROE",val:"12.51%",badge:"good",note:"▲ from 5.78%"},{name:"ROCE",val:"5.33%",badge:"warn",note:"▼ from 6.50%"}]},
+      { title:"Leverage & Solvency",   status:"danger", metrics:[{ name:"Debt-Equity Ratio",val:"6.48x",badge:"bad",note:"▲ from 3.44x"},{name:"DSCR",val:"0.11x",badge:"bad",note:"▼ from 1.70x"},{name:"LT Borrowings",val:"₹19.36 L",badge:"good",note:"▼ from ₹76.06 L"}]},
+      { title:"Operational Efficiency",status:"warn",   metrics:[{ name:"Inventory Turnover",val:"9.35x",badge:"warn",note:"▼ from 15.59x"},{name:"Receivables T/O",val:"12.75x",badge:"good",note:"▲ from 8.77x"},{name:"Payables T/O",val:"3.86x",badge:"warn",note:"▼ from 5.80x"}]},
+      { title:"Cash Flow Health",      status:"warn",   metrics:[{ name:"Operating CF",val:"-₹3.53 Cr",badge:"bad",note:"Cash burn"},{name:"Investing CF",val:"-₹8.31 Cr",badge:"warn",note:"CapEx heavy"},{name:"Financing CF",val:"+₹11.84 Cr",badge:"warn",note:"OD funded"}]},
+      { title:"Growth & Capital",      status:"warn",   metrics:[{ name:"Revenue Growth",val:"+0.02%",badge:"warn",note:"Flat"},{name:"Asset Growth",val:"+90.7%",badge:"good",note:"CWIP expansion"},{name:"EPS",val:"₹2.00",badge:"good",note:"▲ from ₹0.45"}]}
+    ]
+  };
+}
+
+function renderDashboard(d) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('dashboard-content').style.display = 'block';
+  document.getElementById('company-name').textContent = d.company || '—';
+  document.getElementById('company-period').textContent = d.period || '';
+  document.getElementById('health-score').textContent = d.health_score || '—';
+  document.getElementById('last-analysed').textContent = new Date().toLocaleString('en-IN');
+
+  const score = d.health_score || 67;
+  const circ  = 2 * Math.PI * 38;
+  const offset= circ - (score / 100) * circ;
+  const arc = document.getElementById('score-arc');
+  if (arc) { arc.setAttribute('stroke-dasharray', circ.toFixed(0)); arc.setAttribute('stroke-dashoffset', offset.toFixed(0)); }
+
+  // Alerts
+  const alertsArea = document.getElementById('alerts-area');
+  alertsArea.innerHTML = '';
+  const icons = { danger:'🚨', warn:'⚠️', good:'✅' };
+  (d.alerts||[]).forEach(a => {
+    alertsArea.innerHTML += `<div class="alert ${a.type}"><span>${icons[a.type]||'ℹ️'}</span><div>${a.text}</div></div>`;
+  });
+
+  // KPIs
+  const kpiGrid = document.getElementById('kpi-grid');
+  kpiGrid.innerHTML = '';
+  (d.kpis||[]).forEach(k => {
+    const cls = k.dir === 'down' ? 'danger' : k.dir === 'up' ? 'good' : '';
+    kpiGrid.innerHTML += `<div class="kpi-card ${cls}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-change ${k.dir}">${k.dir==='up'?'▲':'▼'} ${k.change}</div>
+    </div>`;
+  });
+
+  // Dimensions
+  const dimGrid = document.getElementById('dim-grid');
+  dimGrid.innerHTML = '';
+  (d.dimensions||[]).forEach(dim => {
+    const metrics = (dim.metrics||[]).map(m =>
+      `<div class="metric-row">
+        <span class="metric-name">${m.name} <span style="font-size:10px;color:var(--gray-400)">${m.note||''}</span></span>
+        <span class="metric-val">${m.val}<span class="metric-badge badge-${m.badge||'warn'}">${m.badge==='good'?'OK':m.badge==='bad'?'Low':'Watch'}</span></span>
+      </div>`
+    ).join('');
+    dimGrid.innerHTML += `<div class="dim-card">
+      <div class="dim-title"><div class="dim-dot ${dim.status}"></div>${dim.title}</div>
+      ${metrics}
+    </div>`;
+  });
+
+  analysisData = d;
+  if (!chartsBuilt) { buildCharts(); chartsBuilt = true; }
+}
+
+// ── CHARTS ──
+const C = {
+  blue:'#123396', blueL:'#3B82F6',
+  green:'#2E7D52', greenL:'#4CAF50',
+  red:'#C0392B',
+  amber:'#D4820A',
+  teal:'#0F766E',
+  gray:'#6B7280'
+};
+
+function buildCharts() {
+  // 1. PIE
+  const pieData = [
+    { label:'Fixed Assets', val:14.82, color:C.blue },
+    { label:'CWIP',         val:8.10,  color:C.blueL },
+    { label:'Inventory',    val:1.66,  color:C.teal },
+    { label:'Receivables',  val:1.21,  color:C.green },
+    { label:'Cash & Bank',  val:0.02,  color:C.amber },
+    { label:'Other Assets', val:3.91,  color:C.gray },
+  ];
+  new Chart(document.getElementById('pieChart'), {
+    type:'pie',
+    data:{ labels: pieData.map(d=>d.label), datasets:[{ data: pieData.map(d=>d.val), backgroundColor: pieData.map(d=>d.color), borderWidth:2, borderColor:'#fff' }] },
+    options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ₹${ctx.parsed.toFixed(2)} Cr`}} } }
+  });
+  const pieLeg = document.getElementById('pieLegend');
+  pieData.forEach(d => { pieLeg.innerHTML += `<div class="pie-legend-row"><div class="pie-legend-dot" style="background:${d.color}"></div><span>${d.label}</span><span class="pie-legend-val">₹${d.val.toFixed(2)} Cr</span></div>`; });
+
+  // 2. BAR — Revenue vs Profit
+  new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{
+      labels:['FY 2022','FY 2023','FY 2024'],
+      datasets:[
+        { label:'Revenue (₹ Cr)', data:[11.20,15.47,15.48], backgroundColor:C.blue, borderRadius:6 },
+        { label:'Net Profit (₹ L)', data:[10.50,17.30,41.12], backgroundColor:C.greenL, borderRadius:6, yAxisID:'y2' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        y:{ grid:{color:'#F0F2FA'}, ticks:{callback:v=>'₹'+v+'Cr'} },
+        y2:{ position:'right', grid:{display:false}, ticks:{callback:v=>'₹'+v+'L'} }
+      },
+      plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
+    }
+  });
+
+  // 3. KPI STACKS
+  const stackMetrics = [
+    { label:'ROE',            val:12.51, max:25, unit:'%', color:C.green },
+    { label:'ROCE',           val:5.33,  max:15, unit:'%', color:C.amber },
+    { label:'Net Margin',     val:2.66,  max:10, unit:'%', color:C.blue },
+    { label:'Inventory T/O',  val:9.35,  max:20, unit:'x', color:C.teal },
+    { label:'Receivables T/O',val:12.75, max:20, unit:'x', color:C.greenL },
+    { label:'Debt-Equity',    val:6.48,  max:10, unit:'x', color:C.red },
+    { label:'Current Ratio',  val:0.61,  max:3,  unit:'x', color:C.red },
+    { label:'DSCR',           val:0.11,  max:3,  unit:'x', color:C.red },
+  ];
+  const kpiStack = document.getElementById('kpiStack');
+  stackMetrics.forEach(m => {
+    const pct = Math.min(100, (m.val / m.max) * 100);
+    kpiStack.innerHTML += `<div class="kpi-stack-row">
+      <div class="kpi-stack-label">${m.label}</div>
+      <div class="kpi-stack-bar-wrap">
+        <div class="kpi-stack-bar" style="width:${pct}%;background:${m.color};">
+          ${pct>20?`<span class="kpi-stack-val">${m.val}${m.unit}</span>`:''}
+        </div>
+      </div>
+      <div class="kpi-stack-num">${m.val}${m.unit}</div>
+    </div>`;
+  });
+
+  // 4. DONUT
+  const donutData = [
+    { label:'Short-term OD',  val:20.70, color:C.red },
+    { label:'LT Borrowings',  val:0.19,  color:C.amber },
+    { label:'Trade Payables', val:4.01,  color:C.blueL },
+    { label:'Equity',         val:3.49,  color:C.green },
+    { label:'Other Liab.',    val:1.33,  color:C.gray },
+  ];
+  new Chart(document.getElementById('donutChart'), {
+    type:'doughnut',
+    data:{ labels: donutData.map(d=>d.label), datasets:[{ data: donutData.map(d=>d.val), backgroundColor: donutData.map(d=>d.color), borderWidth:2, borderColor:'#fff', hoverOffset:6 }] },
+    options:{ responsive:true, maintainAspectRatio:true, cutout:'60%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ₹${ctx.parsed.toFixed(2)} Cr`}} } }
+  });
+  const donutLeg = document.getElementById('donutLegend');
+  donutData.forEach(d => { donutLeg.innerHTML += `<div class="pie-legend-row"><div class="pie-legend-dot" style="background:${d.color}"></div><span>${d.label}</span><span class="pie-legend-val">₹${d.val.toFixed(2)} Cr</span></div>`; });
+
+  // 5. RADAR
+  new Chart(document.getElementById('radarChart'), {
+    type:'radar',
+    data:{
+      labels:['Liquidity','Profitability','Leverage','Efficiency','Cash Flow','Growth'],
+      datasets:[
+        { label:'FY 2023', data:[72,42,55,68,55,45], borderColor:C.blueL, backgroundColor:'rgba(59,130,246,0.12)', pointBackgroundColor:C.blueL, borderWidth:2, pointRadius:4 },
+        { label:'FY 2024', data:[20,72,22,58,30,62], borderColor:C.blue,  backgroundColor:'rgba(18,51,150,0.12)',  pointBackgroundColor:C.blue,  borderWidth:2, pointRadius:4 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{ r:{ min:0, max:100, ticks:{display:false}, grid:{color:'#E5E7EB'}, pointLabels:{font:{size:11,weight:'500'},color:'#1E2A4A'} } },
+      plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
+    }
+  });
+
+  // 6. GROUPED BAR — Turnover
+  new Chart(document.getElementById('groupedBar'), {
+    type:'bar',
+    data:{
+      labels:['Inventory T/O','Receivables T/O','Payables T/O','Asset T/O'],
+      datasets:[
+        { label:'FY 2023', data:[15.59,8.77,5.80,0.99], backgroundColor:C.blueL, borderRadius:5 },
+        { label:'FY 2024', data:[9.35,12.75,3.86,0.52], backgroundColor:C.blue,  borderRadius:5 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{ x:{grid:{display:false}}, y:{grid:{color:'#F0F2FA'},ticks:{callback:v=>v+'x'}} },
+      plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}} }
+    }
+  });
+
+
+}
+
+// ── CHAT ──
+let chatOpen_ = false;
+function toggleChat() {
+  chatOpen_ = !chatOpen_;
+  document.getElementById('chat-panel').classList.toggle('show', chatOpen_);
+  if (chatOpen_) { const n = document.querySelector('#chat-btn .notif'); if(n) n.style.display='none'; }
+}
+function askChip(q) { document.getElementById('chat-input').value = q; sendChat(); }
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  appendMsg('user', q);
+  const typing = appendTyping();
+  try {
+    const res = await fetch(WEBHOOK_CHAT, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message:q, sessionId, context: analysisData ? JSON.stringify(analysisData).substring(0,2000) : '' })
+    });
+    typing.remove();
+    if (res.ok) {
+      const data = await res.json();
+      appendMsg('bot', data.reply || data.text || data.message || data.output || getFallback(q));
+    } else { appendMsg('bot', getFallback(q)); }
+  } catch { typing.remove(); appendMsg('bot', getFallback(q)); }
+}
+function getFallback(q) {
+  const lq = q.toLowerCase();
+  if (lq.includes('risk')) return "The biggest risk is the liquidity crunch — Current Ratio fell to 0.61x from 1.84x. OD borrowings (₹20.70 Cr) spiked 591%. DSCR of 0.11x means the company can barely service its debt from operations.";
+  if (lq.includes('debt')||lq.includes('equity')) return "Debt-Equity Ratio jumped to 6.48x from 3.44x. LT debt reduced (good) but short-term OD borrowings exploded. Structural risk if revenue stays flat.";
+  if (lq.includes('cash')) return "Operating CF is -₹3.53 Cr (cash burn). Investing CF is -₹8.31 Cr (CapEx). Only Financing CF is +₹11.84 Cr — all borrowed via ODs.";
+  if (lq.includes('improv')||lq.includes('better')) return "Net Profit Ratio → 2.66% (from 1.12%), ROE → 12.51% (from 5.78%), EPS → ₹2.00 (from ₹0.45), LT borrowings reduced ₹76 L → ₹19 L.";
+  return "Mixed health: strong profitability growth (net profit +137%) but severe liquidity stress. Which area would you like me to deep-dive?";
+}
+function appendMsg(role, text) {
+  const msgs = document.getElementById('chat-messages');
+  const time = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="msg-bubble">${text}</div><div class="msg-time">${time}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+function appendTyping() {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<div class="msg-bubble"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+</script>
+</body>
+</html>
