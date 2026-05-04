@@ -909,5 +909,28 @@ function appendTyping() {
   return div;
 }
 </script>
+
+<!-- Startup Audio -->
+<audio id="startup-audio" src="audio.textToSpeech (8).mp3.mpeg"></audio>
+
+<script>
+window.addEventListener('load', () => {
+  const audio = document.getElementById('startup-audio');
+  if (audio) {
+    // Attempt to play automatically
+    audio.play().catch(error => {
+      console.log("Autoplay prevented by browser. Audio will play on first user interaction.");
+      // Fallback: Play on the first click anywhere on the page
+      const playOnFirstInteraction = () => {
+        audio.play();
+        document.removeEventListener('click', playOnFirstInteraction);
+        document.removeEventListener('keydown', playOnFirstInteraction);
+      };
+      document.addEventListener('click', playOnFirstInteraction);
+      document.addEventListener('keydown', playOnFirstInteraction);
+    });
+  }
+});
+</script>
 </body>
 </html>
